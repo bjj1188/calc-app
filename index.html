@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f0f2f0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="CALC">
+<meta name="description" content="Universal calculator with currency and unit conversion">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<title>CALC — Universal Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@300;400;500&family=Google+Sans+Mono&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f0f2f0;
+    --surface:   #ffffff;
+    --key-num:   #e8eae8;
+    --key-num-h: #dcdede;
+    --key-fn:    #d4e8d4;
+    --key-fn-h:  #c4dcc4;
+    --key-op:    #c8dfc8;
+    --key-op-h:  #b8d0b8;
+    --key-eq:    #4a7c59;
+    --key-eq-h:  #3d6b4a;
+    --key-sci:   #dce8f4;
+    --key-sci-h: #ccdaec;
+    --accent:    #4a7c59;
+    --accent2:   #3a6b88;
+    --red:       #c0392b;
+    --text:      #1a1c1a;
+    --text-mid:  #444844;
+    --text-dim:  #8a8e8a;
+    --text-eq:   #ffffff;
+    --sans: 'Google Sans', 'Nunito', system-ui, sans-serif;
+    --mono: 'Google Sans Mono', 'Roboto Mono', monospace;
+    --r-key: 50px;   /* pill radius */
+    --r-app: 28px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: env(safe-area-inset-top,16px) 16px env(safe-area-inset-bottom,16px);
+  }
+
+  .app {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface);
+    border-radius: var(--r-app);
+    overflow: hidden;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 20px 24px 0;
+    background: var(--surface);
+  }
+  .brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .brand {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+  .sci-toggle {
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--key-sci-h);
+    background: var(--key-sci);
+    color: var(--accent2);
+    cursor: pointer;
+    transition: all 0.18s;
+    display: inline-flex;
+    align-items: center;
+  }
+  .sci-toggle:hover { background: var(--key-sci-h); }
+  .sci-toggle.active { background: var(--accent2); color: #fff; border-color: var(--accent2); }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--key-num);
+    border-radius: 14px;
+    padding: 4px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1;
+    padding: 8px 4px;
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 13px;
+    color: var(--text-mid);
+    cursor: pointer;
+    border: none;
+    background: none;
+    border-radius: 10px;
+    transition: all 0.18s;
+    text-align: center;
+  }
+  .tab:hover { background: var(--key-num-h); color: var(--text); }
+  .tab.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(0,0,0,0.10); font-weight: 600; }
+
+  /* ── Panels ── */
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Calc Display ── */
+  .calc-display {
+    background: var(--surface);
+    padding: 8px 24px 20px;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+  }
+  .calc-expr {
+    font-size: 15px;
+    color: var(--text-dim);
+    min-height: 22px;
+    text-align: right;
+    word-break: break-all;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .calc-val {
+    font-family: var(--mono);
+    font-size: 52px;
+    font-weight: 300;
+    color: var(--text);
+    line-height: 1.1;
+    word-break: break-all;
+    text-align: right;
+    transition: font-size 0.12s;
+  }
+  .calc-val.long  { font-size: 36px; }
+  .calc-val.vlong { font-size: 26px; }
+  .calc-val.error { color: var(--red); font-size: 22px; }
+
+  /* ── Angle bar ── */
+  .angle-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 8px 20px;
+    border-top: 1px solid var(--key-num);
+  }
+  .angle-bar span {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+  .angle-toggle {
+    display: flex;
+    background: var(--key-num);
+    border-radius: 20px;
+    padding: 2px;
+    gap: 2px;
+  }
+  .angle-btn {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    padding: 4px 12px;
+    border-radius: 16px;
+    border: none;
+    background: none;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .angle-btn.active { background: var(--surface); color: var(--accent2); box-shadow: 0 1px 3px rgba(0,0,0,0.10); }
+
+  /* ── Keypad ── */
+  .keypad {
+    display: grid;
+    gap: 10px;
+    padding: 12px 16px 20px;
+    background: var(--bg);
+  }
+  .keypad.basic { grid-template-columns: repeat(4, 1fr); }
+  .keypad.sci   { grid-template-columns: repeat(5, 1fr); }
+
+  .key {
+    background: var(--key-num);
+    border: none;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 400;
+    aspect-ratio: 1;
+    border-radius: var(--r-key);
+    cursor: pointer;
+    transition: background 0.10s, transform 0.08s, box-shadow 0.10s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    line-height: 1;
+    padding: 0;
+    min-height: 0;
+  }
+  .key:hover  { background: var(--key-num-h); }
+  .key:active { transform: scale(0.93); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+
+  .key.op {
+    background: var(--key-op);
+    color: var(--accent);
+    font-size: 24px;
+    font-weight: 500;
+  }
+  .key.op:hover  { background: var(--key-op-h); }
+
+  .key.fn {
+    background: var(--key-fn);
+    color: var(--accent);
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .key.fn:hover  { background: var(--key-fn-h); }
+  .key.clr { color: var(--red); }
+
+  .key.eq {
+    background: var(--key-eq);
+    color: var(--text-eq);
+    font-size: 26px;
+    font-weight: 400;
+    box-shadow: 0 3px 10px rgba(74,124,89,0.30);
+  }
+  .key.eq:hover  { background: var(--key-eq-h); }
+  .key.eq:active { box-shadow: 0 1px 4px rgba(74,124,89,0.20); }
+
+  .key.sci-key {
+    background: var(--key-sci);
+    color: var(--accent2);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    border-radius: 16px;
+    aspect-ratio: unset;
+    padding: 12px 2px;
+  }
+  .key.sci-key:hover  { background: var(--key-sci-h); }
+
+  /* zero spans 2 cols */
+  .key.zero {
+    grid-column: span 2;
+    aspect-ratio: unset;
+    border-radius: var(--r-key);
+    padding: 0 0 0 28px;
+    justify-content: flex-start;
+    height: 64px;
+  }
+
+  /* sci rows hidden by default */
+  .sci-row { display: none; }
+  .sci-mode .sci-row { display: contents; }
+
+  /* ── Conversion shared ── */
+  .conv-body {
+    padding: 20px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--surface);
+  }
+  .conv-row { display: flex; flex-direction: column; gap: 6px; }
+  .conv-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+  }
+  .conv-input-wrap { display: flex; gap: 8px; align-items: stretch; }
+  .conv-input {
+    flex: 1;
+    background: var(--key-num);
+    border: 1.5px solid transparent;
+    border-radius: 16px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 24px;
+    font-weight: 400;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    min-width: 0;
+  }
+  .conv-input:focus { border-color: var(--accent); background: var(--surface); }
+  .conv-select {
+    background: var(--key-num);
+    border: 1.5px solid transparent;
+    border-radius: 14px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 500;
+    font-size: 13px;
+    padding: 10px 10px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    min-width: 76px;
+    max-width: 140px;
+  }
+  .conv-select:focus { border-color: var(--accent); }
+
+  .swap-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .swap-line { flex: 1; height: 1px; background: var(--key-num); }
+  .swap-btn {
+    background: var(--key-fn);
+    border: none;
+    border-radius: 50%;
+    color: var(--accent);
+    font-size: 18px;
+    width: 40px; height: 40px;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    flex-shrink: 0;
+  }
+  .swap-btn:hover { background: var(--key-fn-h); transform: rotate(180deg); }
+
+  .result-display {
+    flex: 1;
+    background: var(--key-num);
+    border-radius: 16px;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--accent);
+    text-align: right;
+    min-height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    word-break: break-all;
+  }
+
+  .rate-info {
+    background: var(--key-num);
+    border-radius: 14px;
+    padding: 12px 16px;
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.9;
+  }
+  .rate-info strong { color: var(--accent); }
+
+  /* ── Unit type pills ── */
+  .unit-type-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .unit-type-btn {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1.5px solid var(--key-num-h);
+    background: var(--key-num);
+    color: var(--text-mid);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .unit-type-btn:hover { background: var(--key-num-h); }
+  .unit-type-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="brand-row">
+      <div class="brand">CALC</div>
+      <button class="sci-toggle" id="sci-toggle" onclick="toggleSci()">Scientific</button>
+    </div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('calc')">Calculator</button>
+      <button class="tab" onclick="switchTab('currency')">Currency</button>
+      <button class="tab" onclick="switchTab('units')">Units</button>
+    </div>
+  </div>
+
+  <!-- ═══ CALCULATOR ═══ -->
+  <div id="panel-calc" class="panel active">
+    <div class="calc-display">
+      <div class="calc-expr" id="calc-expr"></div>
+      <div class="calc-val" id="calc-val">0</div>
+    </div>
+
+    <div class="keypad basic" id="keypad-basic">
+      <!-- Scientific rows -->
+      <div class="sci-row">
+        <button class="key sci-key" onclick="sciInput('sin')">sin</button>
+        <button class="key sci-key" onclick="sciInput('cos')">cos</button>
+        <button class="key sci-key" onclick="sciInput('tan')">tan</button>
+        <button class="key sci-key" onclick="sciInput('log')">log</button>
+        <button class="key sci-key" onclick="sciInput('ln')">ln</button>
+        <button class="key sci-key" onclick="sciInput('asin')">sin⁻¹</button>
+        <button class="key sci-key" onclick="sciInput('acos')">cos⁻¹</button>
+        <button class="key sci-key" onclick="sciInput('atan')">tan⁻¹</button>
+        <button class="key sci-key" onclick="sciInput('sqrt')">√</button>
+        <button class="key sci-key" onclick="sciInput('cbrt')">∛</button>
+        <button class="key sci-key" onclick="sciInput('pow2')">x²</button>
+        <button class="key sci-key" onclick="sciInput('pow3')">x³</button>
+        <button class="key sci-key" onclick="sciInput('powY')">xʸ</button>
+        <button class="key sci-key" onclick="sciInput('inv')">1/x</button>
+        <button class="key sci-key" onclick="sciInput('abs')">|x|</button>
+        <button class="key sci-key" onclick="sciInput('exp10')">10ˣ</button>
+        <button class="key sci-key" onclick="sciInput('exp')">eˣ</button>
+        <button class="key sci-key" onclick="sciInput('pi')">π</button>
+        <button class="key sci-key" onclick="sciInput('e')">e</button>
+        <button class="key sci-key" onclick="sciInput('fact')">n!</button>
+      </div>
+
+      <!-- Standard rows -->
+      <button class="key fn clr" onclick="calcInput('AC')">AC</button>
+      <button class="key fn" onclick="calcInput('±')">±</button>
+      <button class="key fn" onclick="calcInput('%')">%</button>
+      <button class="key op" onclick="calcInput('÷')">÷</button>
+
+      <button class="key" onclick="calcInput('7')">7</button>
+      <button class="key" onclick="calcInput('8')">8</button>
+      <button class="key" onclick="calcInput('9')">9</button>
+      <button class="key op" onclick="calcInput('×')">×</button>
+
+      <button class="key" onclick="calcInput('4')">4</button>
+      <button class="key" onclick="calcInput('5')">5</button>
+      <button class="key" onclick="calcInput('6')">6</button>
+      <button class="key op" onclick="calcInput('−')">−</button>
+
+      <button class="key" onclick="calcInput('1')">1</button>
+      <button class="key" onclick="calcInput('2')">2</button>
+      <button class="key" onclick="calcInput('3')">3</button>
+      <button class="key op" onclick="calcInput('+')">+</button>
+
+      <button class="key zero" onclick="calcInput('0')">0</button>
+      <button class="key" onclick="calcInput('.')">.</button>
+      <button class="key eq" onclick="calcInput('=')">=</button>
+    </div>
+  </div>
+
+  <!-- ═══ CURRENCY ═══ -->
+  <div id="panel-currency" class="panel">
+    <div class="conv-body">
+      <div class="conv-row">
+        <div class="conv-label">From</div>
+        <div class="conv-input-wrap">
+          <input class="conv-input" id="cur-from-val" type="number" value="1" oninput="convertCurrency()">
+          <select class="conv-select" id="cur-from" onchange="convertCurrency()"></select>
+        </div>
+      </div>
+      <div class="swap-row">
+        <div class="swap-line"></div>
+        <button class="swap-btn" onclick="swapCurrency()">⇅</button>
+        <div class="swap-line"></div>
+      </div>
+      <div class="conv-row">
+        <div class="conv-label">To</div>
+        <div class="conv-input-wrap">
+          <div class="result-display" id="cur-result">—</div>
+          <select class="conv-select" id="cur-to" onchange="convertCurrency()"></select>
+        </div>
+      </div>
+      <div class="rate-info" id="cur-rate-info">Fetching live rates…</div>
+    </div>
+  </div>
+
+  <!-- ═══ UNITS ═══ -->
+  <div id="panel-units" class="panel">
+    <div class="conv-body">
+      <div class="unit-type-row" id="unit-type-row"></div>
+      <div class="conv-row">
+        <div class="conv-label">From</div>
+        <div class="conv-input-wrap">
+          <input class="conv-input" id="unit-from-val" type="number" value="1" oninput="convertUnit()">
+          <select class="conv-select" id="unit-from" onchange="convertUnit()"></select>
+        </div>
+      </div>
+      <div class="swap-row">
+        <div class="swap-line"></div>
+        <button class="swap-btn" onclick="swapUnit()">⇅</button>
+        <div class="swap-line"></div>
+      </div>
+      <div class="conv-row">
+        <div class="conv-label">To</div>
+        <div class="conv-input-wrap">
+          <div class="result-display" id="unit-result">—</div>
+          <select class="conv-select" id="unit-to" onchange="convertUnit()"></select>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════
+//  TAB SWITCHING
+// ══════════════════════════════════
+function switchTab(name) {
+  ['calc','currency','units'].forEach((n,i) => {
+    document.querySelectorAll('.tab')[i].classList.toggle('active', n === name);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.getElementById('sci-toggle').style.display = name === 'calc' ? '' : 'none';
+}
+
+// ══════════════════════════════════
+//  SCIENTIFIC MODE
+// ══════════════════════════════════
+let sciMode = false;
+let angleMode = 'deg';
+
+function toggleSci() {
+  sciMode = !sciMode;
+  const toggle = document.getElementById('sci-toggle');
+  const keypad = document.getElementById('keypad-basic');
+  toggle.classList.toggle('active', sciMode);
+  keypad.className = 'keypad ' + (sciMode ? 'sci sci-mode' : 'basic');
+
+  const existingAngle = document.getElementById('angle-bar');
+  if (sciMode && !existingAngle) {
+    const bar = document.createElement('div');
+    bar.id = 'angle-bar';
+    bar.className = 'angle-bar';
+    bar.innerHTML = `
+      <span>Angle</span>
+      <div class="angle-toggle">
+        <button class="angle-btn ${angleMode==='deg'?'active':''}" id="btn-deg" onclick="setAngle('deg')">DEG</button>
+        <button class="angle-btn ${angleMode==='rad'?'active':''}" id="btn-rad" onclick="setAngle('rad')">RAD</button>
+      </div>`;
+    document.querySelector('.calc-display').after(bar);
+  } else if (!sciMode && existingAngle) {
+    existingAngle.remove();
+  }
+}
+
+function setAngle(mode) {
+  angleMode = mode;
+  document.getElementById('btn-deg').classList.toggle('active', mode === 'deg');
+  document.getElementById('btn-rad').classList.toggle('active', mode === 'rad');
+}
+
+function toRad(x)   { return angleMode === 'deg' ? x * Math.PI / 180 : x; }
+function fromRad(x) { return angleMode === 'deg' ? x * 180 / Math.PI : x; }
+
+// ══════════════════════════════════
+//  CALCULATOR
+// ══════════════════════════════════
+let calcState = {
+  display: '0', expr: '', op: null, operand: null,
+  justEvaled: false, hasDecimal: false
+};
+
+function sciInput(fn) {
+  const x = parseFloat(calcState.display);
+  if (isNaN(x)) return;
+  let result;
+  switch(fn) {
+    case 'sin':   result = Math.sin(toRad(x)); break;
+    case 'cos':   result = Math.cos(toRad(x)); break;
+    case 'tan':   result = Math.tan(toRad(x)); break;
+    case 'asin':  result = fromRad(Math.asin(x)); break;
+    case 'acos':  result = fromRad(Math.acos(x)); break;
+    case 'atan':  result = fromRad(Math.atan(x)); break;
+    case 'log':   result = Math.log10(x); break;
+    case 'ln':    result = Math.log(x); break;
+    case 'sqrt':  result = Math.sqrt(x); break;
+    case 'cbrt':  result = Math.cbrt(x); break;
+    case 'pow2':  result = Math.pow(x, 2); break;
+    case 'pow3':  result = Math.pow(x, 3); break;
+    case 'inv':   result = 1 / x; break;
+    case 'abs':   result = Math.abs(x); break;
+    case 'exp10': result = Math.pow(10, x); break;
+    case 'exp':   result = Math.exp(x); break;
+    case 'fact':  result = factorial(Math.round(x)); break;
+    case 'pi':
+      calcState.display = String(Math.PI); calcState.hasDecimal = true;
+      renderCalc(); return;
+    case 'e':
+      calcState.display = String(Math.E); calcState.hasDecimal = true;
+      renderCalc(); return;
+    case 'powY':
+      calcState.operand = x; calcState.op = '^';
+      calcState.expr = calcState.display + ' ^';
+      calcState.display = '0'; calcState.hasDecimal = false; calcState.justEvaled = false;
+      renderCalc(); return;
+  }
+  calcState.display = (result !== undefined && isFinite(result)) ? formatNum(result) : 'Error';
+  calcState.hasDecimal = calcState.display.includes('.');
+  calcState.justEvaled = true;
+  renderCalc();
+}
+
+function factorial(n) {
+  if (n < 0 || n > 170) return Infinity;
+  if (n <= 1) return 1;
+  let r = 1; for (let i = 2; i <= n; i++) r *= i; return r;
+}
+
+function calcInput(key) {
+  const s = calcState;
+  if (key === 'AC') {
+    s.display = '0'; s.expr = ''; s.op = null; s.operand = null;
+    s.justEvaled = false; s.hasDecimal = false;
+  } else if (key === '±') {
+    if (s.display !== '0' && s.display !== 'Error')
+      s.display = String(-parseFloat(s.display));
+  } else if (key === '%') {
+    s.display = String(parseFloat(s.display) / 100); s.hasDecimal = true;
+  } else if (['+','−','×','÷'].includes(key)) {
+    if (s.op && !s.justEvaled) {
+      const res = evalOp(s.operand, parseFloat(s.display), s.op);
+      s.display = isFinite(res) ? formatNum(res) : 'Error';
+    }
+    s.operand = parseFloat(s.display); s.op = key;
+    s.expr = s.display + ' ' + key;
+    s.justEvaled = false; s.display = '0'; s.hasDecimal = false;
+  } else if (key === '=') {
+    if (s.op && s.operand !== null) {
+      const b = parseFloat(s.display);
+      s.expr = s.expr + ' ' + s.display + ' =';
+      const res = evalOp(s.operand, b, s.op);
+      s.display = isFinite(res) ? formatNum(res) : (isNaN(res) ? 'Error' : '∞');
+      s.op = null; s.operand = null; s.justEvaled = true; s.hasDecimal = false;
+    }
+  } else if (key === '.') {
+    if (!s.hasDecimal) {
+      if (s.justEvaled) { s.display = '0'; s.justEvaled = false; }
+      s.display += '.'; s.hasDecimal = true;
+    }
+  } else {
+    if (s.justEvaled) { s.display = key; s.justEvaled = false; s.expr = ''; }
+    else if (s.display === '0') s.display = key;
+    else s.display += key;
+    if (s.display.length > 13) s.display = s.display.slice(0,-1);
+  }
+  renderCalc();
+}
+
+function evalOp(a, b, op) {
+  if (op === '+') return a + b;
+  if (op === '−') return a - b;
+  if (op === '×') return a * b;
+  if (op === '÷') return b === 0 ? NaN : a / b;
+  if (op === '^') return Math.pow(a, b);
+  return b;
+}
+
+function formatNum(n) {
+  if (!isFinite(n)) return 'Error';
+  if (Math.abs(n) > 1e15 || (Math.abs(n) < 1e-9 && n !== 0))
+    return n.toExponential(6).replace(/\.?0+e/, 'e');
+  return parseFloat(n.toPrecision(12)) + '';
+}
+
+function renderCalc() {
+  const s = calcState;
+  const el = document.getElementById('calc-val');
+  el.textContent = s.display;
+  const l = s.display.length;
+  el.className = 'calc-val' + (s.display === 'Error' ? ' error' : l > 14 ? ' vlong' : l > 10 ? ' long' : '');
+  document.getElementById('calc-expr').textContent = s.expr;
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('panel-calc').classList.contains('active')) return;
+  const map = {'0':'0','1':'1','2':'2','3':'3','4':'4','5':'5','6':'6','7':'7','8':'8','9':'9',
+    '.':'.','Enter':'=','=':'=','+':'+','-':'−','*':'×','/':'÷','Backspace':'DEL','Escape':'AC','%':'%','^':'pow'};
+  const k = map[e.key];
+  if (k === 'DEL') {
+    calcState.display = calcState.display.length > 1 && calcState.display !== 'Error'
+      ? calcState.display.slice(0,-1) : '0';
+    renderCalc();
+  } else if (k === 'pow') { sciInput('powY'); }
+  else if (k) { e.preventDefault(); calcInput(k); }
+});
+
+// ══════════════════════════════════
+//  CURRENCY — live via Frankfurter
+// ══════════════════════════════════
+const FX_NAMES = {
+  USD:'US Dollar',EUR:'Euro',GBP:'British Pound',JPY:'Japanese Yen',
+  CAD:'Canadian Dollar',AUD:'Australian Dollar',CHF:'Swiss Franc',
+  CNY:'Chinese Yuan',INR:'Indian Rupee',MXN:'Mexican Peso',
+  BRL:'Brazilian Real',KRW:'South Korean Won',SGD:'Singapore Dollar',
+  HKD:'Hong Kong Dollar',NOK:'Norwegian Krone',SEK:'Swedish Krona',
+  DKK:'Danish Krone',NZD:'New Zealand Dollar',ZAR:'South African Rand',
+  AED:'UAE Dirham',SAR:'Saudi Riyal',THB:'Thai Baht',
+  TRY:'Turkish Lira',PLN:'Polish Zloty',CZK:'Czech Koruna',
+  HUF:'Hungarian Forint',RON:'Romanian Leu',BGN:'Bulgarian Lev',
+  PHP:'Philippine Peso',IDR:'Indonesian Rupiah',MYR:'Malaysian Ringgit',ILS:'Israeli Shekel'
+};
+let FX = {}, fxDate = null, fxLoaded = false;
+
+async function loadLiveRates() {
+  try {
+    const res = await fetch('https://api.frankfurter.app/latest?base=EUR');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    FX = { EUR:1, ...data.rates }; fxDate = data.date; fxLoaded = true;
+    buildCurrencySelects(); convertCurrency();
+  } catch(e) {
+    document.getElementById('cur-rate-info').innerHTML =
+      `<span style="color:var(--red)">Could not fetch live rates — using fallback data.</span>`;
+    FX = {EUR:1,USD:1.087,GBP:0.861,JPY:162.5,CAD:1.476,AUD:1.664,CHF:0.969,CNY:7.862,
+      INR:90.3,MXN:18.59,BRL:5.4,KRW:1445,SGD:1.461,HKD:8.49,NOK:11.49,SEK:11.39,
+      DKK:7.461,NZD:1.773,ZAR:20.23,AED:3.993,SAR:4.076,THB:38.07,TRY:33.6,PLN:4.385,
+      CZK:24.85,HUF:405,RON:4.977,BGN:1.956,PHP:63.2,IDR:17650,MYR:5.07,ILS:4.01};
+    fxLoaded = true; buildCurrencySelects(); convertCurrency();
+  }
+}
+
+function buildCurrencySelects() {
+  const codes = Object.keys(FX).sort();
+  ['cur-from','cur-to'].forEach((id,i) => {
+    const sel = document.getElementById(id), prev = sel.value;
+    sel.innerHTML = '';
+    codes.forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c + (FX_NAMES[c] ? ' — ' + FX_NAMES[c] : '');
+      sel.appendChild(o);
+    });
+    sel.value = (prev && codes.includes(prev)) ? prev : (i===0 ? 'USD' : 'GBP');
+  });
+}
+
+function convertCurrency() {
+  const amount = parseFloat(document.getElementById('cur-from-val').value);
+  const from = document.getElementById('cur-from').value;
+  const to = document.getElementById('cur-to').value;
+  const result = document.getElementById('cur-result');
+  const info = document.getElementById('cur-rate-info');
+  if (!fxLoaded) { result.textContent = '…'; return; }
+  if (isNaN(amount) || !FX[from] || !FX[to]) { result.textContent = '—'; return; }
+  const converted = (amount / FX[from]) * FX[to];
+  const unitRate = FX[to] / FX[from];
+  const dec = ['JPY','KRW','HUF','IDR'].includes(to) ? 0 : 2;
+  result.textContent = converted.toLocaleString('en-US',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+  info.innerHTML = `<strong>1 ${from}</strong> = <strong>${unitRate.toPrecision(5)} ${to}</strong><br>
+    <span style="font-size:11px">${FX_NAMES[from]||from} → ${FX_NAMES[to]||to}</span><br>
+    <span style="font-size:11px;opacity:0.6">${fxDate ? '📡 ECB live · ' + fxDate : '⚠ Fallback rates'}</span>`;
+}
+
+function swapCurrency() {
+  const f=document.getElementById('cur-from'),t=document.getElementById('cur-to');
+  [f.value,t.value]=[t.value,f.value]; convertCurrency();
+}
+
+// ══════════════════════════════════
+//  UNIT CONVERSION
+// ══════════════════════════════════
+const UNIT_TYPES = {
+  Length:      {m:1,km:0.001,cm:100,mm:1000,mi:0.000621371,yd:1.09361,ft:3.28084,'in':39.3701,nmi:0.000539957},
+  Mass:        {kg:1,g:1000,mg:1e6,lb:2.20462,oz:35.274,t:0.001,st:0.157473},
+  Temperature: 'temp',
+  Speed:       {'km/h':1,mph:0.621371,'m/s':0.277778,knot:0.539957,'ft/s':0.911344},
+  Area:        {'m²':1,'km²':1e-6,'cm²':10000,'ft²':10.7639,'in²':1550,acre:0.000247105,ha:0.0001},
+  Volume:      {L:1,mL:1000,'m³':0.001,'ft³':0.0353147,gal:0.264172,qt:1.05669,pt:2.11338,fl_oz:33.814,cup:4.22675},
+  Data:        {B:1,KB:0.001,MB:1e-6,GB:1e-9,TB:1e-12,KiB:1/1024,MiB:1/1048576,GiB:1/1073741824,bit:8,Gbit:8e-9},
+  Time:        {s:1,ms:1000,min:1/60,h:1/3600,day:1/86400,week:1/604800,month:1/2629800,year:1/31557600},
+  Energy:      {J:1,kJ:0.001,cal:0.239006,kcal:0.000239006,Wh:1/3600,kWh:1/3600000,BTU:0.000947817},
+  Power:       {W:1,kW:0.001,MW:1e-6,hp:0.00134102},
+  Pressure:    {Pa:1,kPa:0.001,MPa:1e-6,bar:1e-5,psi:0.000145038,atm:9.869e-6,mmHg:0.00750062}
+};
+const TEMP_UNITS = ['°C','°F','K'];
+let activeUnitType = 'Length';
+
+function buildUnitTypeButtons() {
+  const row = document.getElementById('unit-type-row');
+  Object.keys(UNIT_TYPES).forEach(type => {
+    const btn = document.createElement('button');
+    btn.className = 'unit-type-btn' + (type===activeUnitType?' active':'');
+    btn.textContent = type;
+    btn.onclick = () => selectUnitType(type);
+    row.appendChild(btn);
+  });
+}
+
+function selectUnitType(type) {
+  activeUnitType = type;
+  document.querySelectorAll('.unit-type-btn').forEach(b=>b.classList.toggle('active',b.textContent===type));
+  buildUnitSelects();
+}
+
+function buildUnitSelects() {
+  const type = UNIT_TYPES[activeUnitType];
+  const units = type==='temp' ? TEMP_UNITS : Object.keys(type);
+  ['unit-from','unit-to'].forEach((id,i) => {
+    const sel = document.getElementById(id); sel.innerHTML='';
+    units.forEach((u,idx) => {
+      const o=document.createElement('option'); o.value=u; o.textContent=u;
+      if(i===0&&idx===0) o.selected=true;
+      if(i===1&&idx===1) o.selected=true;
+      sel.appendChild(o);
+    });
+  });
+  convertUnit();
+}
+
+function convertUnit() {
+  const amount = parseFloat(document.getElementById('unit-from-val').value);
+  const from = document.getElementById('unit-from').value;
+  const to = document.getElementById('unit-to').value;
+  const result = document.getElementById('unit-result');
+  if (isNaN(amount)) { result.textContent='—'; return; }
+  let res;
+  if (activeUnitType==='Temperature') {
+    let c = from==='°C'?amount : from==='°F'?(amount-32)*5/9 : amount-273.15;
+    res = to==='°C'?c : to==='°F'?c*9/5+32 : c+273.15;
+  } else {
+    const rates = UNIT_TYPES[activeUnitType];
+    res = (amount / rates[from]) * rates[to];
+  }
+  if (!isFinite(res)) { result.textContent='Error'; return; }
+  const fmt = Math.abs(res)<0.0001&&res!==0 ? res.toExponential(4)
+    : parseFloat(res.toPrecision(8)).toLocaleString('en-US',{maximumFractionDigits:6});
+  result.textContent = fmt + ' ' + to;
+}
+
+function swapUnit() {
+  const f=document.getElementById('unit-from'),t=document.getElementById('unit-to');
+  [f.value,t.value]=[t.value,f.value]; convertUnit();
+}
+
+// ── Service Worker ──
+if ('serviceWorker' in navigator)
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+
+// ── Init ──
+loadLiveRates();
+buildUnitTypeButtons();
+buildUnitSelects();
+</script>
+</body>
+</html>
